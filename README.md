@@ -2,6 +2,8 @@
 
 **Google Gemini AI** 기반의 중·고등학생 맞춤형 영단어 예문 학습 및 문법 해설 모바일 웹 애플리케이션입니다.
 
+<img width="560" height="917" alt="캡처" src="https://github.com/user-attachments/assets/8e8b7b14-31b3-4a17-b3cc-969eb2d125b3" />
+
 ## **📌 주요 특징 (Key Features)**
 
 * **🎯 3단계 난이도별 맞춤 예문**:  
