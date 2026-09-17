@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaTutor - 중·고등 영단어 예문 튜터</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Inter & Noto Sans KR) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            touch-action: manipulation;
+        }
+        /* Glassmorphism & Custom Scrollbar */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex justify-center bg-slate-100">
+
+    <!-- Mobile Frame Layout (Centered on Desktop, Full Width on Mobile) -->
+    <div id="app" class="w-full max-w-md bg-white min-h-screen flex flex-col shadow-2xl relative border-x border-gray-200">
+
+        <!-- Top Sticky Navigation Bar -->
+        <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="goHome()">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+                    <i class="fa-solid fa-graduation-cap text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg text-gray-900 leading-none">Voca<span class="text-blue-600">Tutor</span></h1>
+                    <p class="text-[10px] font-medium text-gray-400 mt-0.5">중·고등 맞춤 예문 튜터</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-1">
+                <button onclick="toggleApiKeyModal()" class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition relative" title="API Key 설정">
+                    <i class="fa-solid fa-key text-lg"></i>
+                    <span id="apiKeyBadge" class="hidden absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white"></span>
+                </button>
+                <button onclick="toggleWordbookModal()" class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition relative" title="내 단어장">
+                    <i class="fa-solid fa-bookmark text-lg"></i>
+                    <span id="savedCountBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Scrollable Body Area -->
+        <main class="flex-1 overflow-y-auto pb-12">
+            <!-- Search & Filter Banner -->
+            <section class="p-4 bg-gradient-to-b from-blue-50/70 to-white border-b border-blue-100/50">
+                <form id="searchForm" onsubmit="handleSearch(event)" class="relative mb-3">
+                    <div class="relative flex items-center shadow-lg shadow-blue-500/5 rounded-2xl overflow-hidden border-2 border-blue-200 focus-within:border-blue-500 transition-all bg-white">
+                        <i class="fa-solid fa-magnifying-glass text-blue-500 pl-4 pr-2 text-lg"></i>
+                        <input type="text" id="searchInput" placeholder="궁금한 영어 단어를 입력하세요 (예: consider)" 
+                            class="w-full py-3.5 pr-10 text-gray-800 placeholder-gray-400 font-medium text-sm focus:outline-none bg-transparent"
+                            autocomplete="off" spellcheck="false" required>
+                        <button type="button" id="clearBtn" onclick="clearInput()" class="hidden text-gray-300 hover:text-gray-500 p-2 mr-1">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-3.5 transition flex items-center space-x-1">
+                            <span>검색</span>
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Popular / Recommended School Vocab Chips -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-gray-500 flex items-center gap-1">
+                            <i class="fa-solid fa-fire text-amber-500 text-xs"></i> 중·고교 필수 추천 단어
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 hide-scrollbar overflow-x-auto">
+                        <button onclick="searchWord('emphasize')" class="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-xs font-medium text-gray-700 hover:text-blue-600 transition shadow-sm">emphasize</button>
+                        <button onclick="searchWord('crucial')" class="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-xs font-medium text-gray-700 hover:text-blue-600 transition shadow-sm">crucial</button>
+                        <button onclick="searchWord('substitute')" class="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-xs font-medium text-gray-700 hover:text-blue-600 transition shadow-sm">substitute</button>
+                        <button onclick="searchWord('inevitable')" class="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-xs font-medium text-gray-700 hover:text-blue-600 transition shadow-sm">inevitable</button>
+                        <button onclick="searchWord('reluctant')" class="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-xs font-medium text-gray-700 hover:text-blue-600 transition shadow-sm">reluctant</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Welcome / Initial State View -->
+            <section id="welcomeView" class="p-6 text-center space-y-6">
+                <div class="w-20 h-20 bg-blue-100/70 text-blue-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                    <i class="fa-solid fa-book-open text-3xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 mb-1">어떤 단어를 공부할까요?</h2>
+                    <p class="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
+                        영어 단어를 입력하면 <strong class="text-blue-600">중학교 필수예문부터 고등 수능 수준 예문까지 3단계</strong>로 알기 쉽게 해설해 드립니다.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2.5 pt-2">
+                    <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                        <div class="text-blue-600 text-lg mb-1"><i class="fa-solid fa-layer-group"></i></div>
+                        <h3 class="text-xs font-bold text-gray-800">3단계 예문</h3>
+                        <p class="text-[10px] text-gray-400 mt-0.5">중학 / 고등 / 수능</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                        <div class="text-indigo-600 text-lg mb-1"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <h3 class="text-xs font-bold text-gray-800">문법·구문 분석</h3>
+                        <p class="text-[10px] text-gray-400 mt-0.5">상세한 해석 팁</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                        <div class="text-emerald-600 text-lg mb-1"><i class="fa-solid fa-volume-high"></i></div>
+                        <h3 class="text-xs font-bold text-gray-800">원어민 발음</h3>
+                        <p class="text-[10px] text-gray-400 mt-0.5">음성 바로 듣기</p>
+                    </div>
+                </div>
+
+                <!-- Recent Searches List -->
+                <div id="recentSearchContainer" class="hidden text-left border-t border-gray-100 pt-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-500">최근 검색한 단어</span>
+                        <button onclick="clearRecentSearches()" class="text-[11px] text-gray-400 hover:text-red-500">기록 삭제</button>
+                    </div>
+                    <div id="recentSearchList" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            </section>
+
+            <!-- Loading Skeleton View -->
+            <section id="loadingView" class="hidden p-5 space-y-4">
+                <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm animate-pulse space-y-3">
+                    <div class="h-6 bg-slate-200 rounded w-1/3"></div>
+                    <div class="h-4 bg-slate-100 rounded w-2/3"></div>
+                    <div class="h-4 bg-slate-100 rounded w-1/2"></div>
+                </div>
+                <div class="space-y-3">
+                    <div class="h-40 bg-slate-200 rounded-2xl animate-pulse"></div>
+                    <div class="h-40 bg-slate-200 rounded-2xl animate-pulse"></div>
+                    <div class="h-40 bg-slate-200 rounded-2xl animate-pulse"></div>
+                </div>
+            </section>
+
+            <!-- Result Content Container -->
+            <section id="resultContainer" class="hidden p-4 space-y-4">
+
+                <!-- Word Header Card -->
+                <div class="bg-white rounded-2xl p-5 border border-blue-100 shadow-md shadow-blue-500/5 relative">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h2 id="wordTitle" class="text-2xl font-black text-gray-900 tracking-tight">word</h2>
+                                <button onclick="speakText(currentData.word)" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-full transition" title="발음 듣기">
+                                    <i class="fa-solid fa-volume-high text-base"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span id="phoneticText" class="text-xs text-gray-400 font-mono">/phonetics/</span>
+                                <span id="posTag" class="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">품사</span>
+                                <span id="difficultyBadge" class="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">중3~고1</span>
+                            </div>
+                        </div>
+                        <button id="bookmarkBtn" onclick="toggleBookmarkCurrent()" class="p-2.5 text-gray-300 hover:text-amber-500 transition rounded-xl bg-gray-50 hover:bg-amber-50">
+                            <i class="fa-solid fa-bookmark text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-gray-100">
+                        <p class="text-xs font-semibold text-gray-400 mb-0.5">핵심 뜻</p>
+                        <p id="wordMeaning" class="text-base font-bold text-gray-800">단어 뜻이 여기에 들어갑니다</p>
+                    </div>
+
+                    <!-- Usage Tip Callout -->
+                    <div id="usageTipBox" class="mt-3 bg-amber-50 border border-amber-200/60 rounded-xl p-3 text-xs text-amber-900 leading-relaxed flex items-start space-x-2">
+                        <i class="fa-solid fa-lightbulb text-amber-500 text-sm mt-0.5"></i>
+                        <div>
+                            <span class="font-bold block text-amber-950 mb-0.5">수능 & 내신 핵심 포인트</span>
+                            <span id="usageTipText">단어 쓰임새 및 전치사 팁</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3 Example Sentences Header -->
+                <div class="flex items-center justify-between px-1 pt-1">
+                    <h3 class="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-check text-blue-600"></i>
+                        <span>단계별 실전 예문 3선</span>
+                    </h3>
+                    <span class="text-[11px] text-gray-400">클릭 시 음성 재생</span>
+                </div>
+
+                <!-- Example Cards Container (Cards dynamically inserted) -->
+                <div id="exampleCards" class="space-y-4"></div>
+
+                <!-- Synonyms & Antonyms Box -->
+                <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-link text-indigo-500"></i> 유의어 (Synonyms)
+                        </h4>
+                        <div id="synonymChips" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                    <div class="pt-2 border-t border-gray-100">
+                        <h4 class="text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-right-left text-rose-500"></i> 반의어 (Antonyms)
+                        </h4>
+                        <div id="antonymChips" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                </div>
+
+                <!-- Quick Practice Quiz Section -->
+                <div id="quizSection" class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1">
+                            <i class="fa-solid fa-circle-question"></i> Instant Practice Quiz
+                        </span>
+                        <span class="text-[10px] bg-indigo-800 text-indigo-200 px-2 py-0.5 rounded-full">빈칸 완성하기</span>
+                    </div>
+
+                    <p id="quizSentence" class="text-sm font-medium leading-relaxed font-mono bg-white/10 p-3 rounded-xl border border-white/10">
+                        Loading quiz...
+                    </p>
+
+                    <div id="quizOptions" class="grid grid-cols-2 gap-2 pt-1"></div>
+
+                    <div id="quizResult" class="hidden p-3 rounded-xl text-xs font-semibold leading-relaxed"></div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Wordbook Saved Words Drawer / Modal -->
+        <div id="wordbookModal" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-end transition-opacity">
+            <div class="w-full max-w-xs bg-white h-full shadow-xl flex flex-col p-4 overflow-y-auto">
+                <div class="flex items-center justify-between border-b pb-3 mb-3">
+                    <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-bookmark text-amber-500"></i> 내 저장 단어장
+                    </h3>
+                    <button onclick="toggleWordbookModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div id="wordbookList" class="space-y-2 flex-1">
+                    <!-- Wordbook items will be rendered here -->
+                </div>
+
+                <button onclick="clearWordbook()" class="mt-4 w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded-xl transition">
+                    단어장 전체 비우기
+                </button>
+            </div>
+        </div>
+
+        <!-- Gemini API Key Settings Modal -->
+        <div id="apiKeyModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-blue-600"></i> Gemini API 키 설정
+                    </h3>
+                    <button onclick="toggleApiKeyModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <p class="text-xs text-gray-600 leading-relaxed">
+                    본인의 <strong class="text-blue-600">Google Gemini API Key</strong>를 입력하면 맞춤 API 호출이 가능해집니다. 입력된 키는 외부 서버로 전송되지 않고 브라우저에만 저장됩니다.
+                </p>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-700 block">API Key 입력</label>
+                    <div class="relative flex items-center">
+                        <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs focus:outline-none focus:border-blue-500 pr-10 font-mono">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 text-gray-400 hover:text-gray-600 text-xs">
+                            <i id="eyeIcon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button onclick="saveApiKey()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-blue-500/20">
+                        저장하기
+                    </button>
+                    <button onclick="clearApiKey()" class="py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-xl transition">
+                        초기화
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Toast Message Notification -->
+        <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-lg z-50 opacity-0 pointer-events-none transition-all duration-300">
+            알림 메시지
+        </div>
+    </div>
+
+    <script>
+        // Global State & Persistent Storage
+        let currentData = null;
+        let savedWords = JSON.parse(localStorage.getItem('voca_saved_words') || '[]');
+        let recentSearches = JSON.parse(localStorage.getItem('voca_recent_searches') || '[]');
+        let customApiKey = localStorage.getItem('voca_gemini_api_key') || '';
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            updateSavedCountBadge();
+            renderRecentSearches();
+            updateApiKeyBadge();
+
+            // Handle URL Search Params or default word
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialWord = urlParams.get('word');
+            if (initialWord) {
+                searchWord(initialWord);
+            }
+
+            // Input Clear button listener
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                document.getElementById('clearBtn').classList.toggle('hidden', !e.target.value);
+            });
+        });
+
+        function clearInput() {
+            const input = document.getElementById('searchInput');
+            input.value = '';
+            input.focus();
+            document.getElementById('clearBtn').classList.add('hidden');
+        }
+
+        function goHome() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('clearBtn').classList.add('hidden');
+            document.getElementById('resultContainer').classList.add('hidden');
+            document.getElementById('loadingView').classList.add('hidden');
+            document.getElementById('welcomeView').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2200);
+        }
+
+        // Web Speech API for Text To Speech
+        function speakText(text) {
+            if (!('speechSynthesis' in window)) {
+                showToast('음성 재생을 지원하지 않는 브라우저입니다.');
+                return;
+            }
+            window.speechSynthesis.cancel(); // Stop current speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; // Slightly slower for clear English learning
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Fetch Word Detailed Examples from Gemini API
+        async function fetchWordDetails(word) {
+            const systemPrompt = `You are a top-tier South Korean English pedagogy expert specializing in Middle and High School English curriculum (내신 및 수능). 
+Generate 3 level-tailored English example sentences for the requested English word, complete with Korean translations, grammar breakdowns, and sentence structure analyses.`;
+
+            const userPrompt = `English target word: "${word}".
+Provide high-quality educational data structured for South Korean middle/high school students.
+- Example 1: Middle school required level (중학교 핵심)
+- Example 2: High school standard level (고등 기본)
+- Example 3: CSAT / High school advanced level (수능/심화)
+Each example must include grammar notes, sentence structure explanation, and vocabulary breakdown.`;
+
+            const apiKey = customApiKey || ""; // User API key or default runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            word: { type: "STRING" },
+                            phonetic: { type: "STRING" },
+                            partOfSpeech: { type: "STRING" },
+                            meaning: { type: "STRING" },
+                            difficulty: { type: "STRING" },
+                            usageTip: { type: "STRING" },
+                            examples: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        levelTag: { type: "STRING" }, // e.g. "중등 필수"
+                                        targetGrade: { type: "STRING" }, // e.g. "중2~3"
+                                        english: { type: "STRING" },
+                                        korean: { type: "STRING" },
+                                        grammarPoint: { type: "STRING" },
+                                        detailedExplanation: { type: "STRING" },
+                                        keyWords: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    en: { type: "STRING" },
+                                                    kr: { type: "STRING" }
+                                                },
+                                                propertyOrdering: ["en", "kr"]
+                                            }
+                                        }
+                                    },
+                                    propertyOrdering: ["levelTag", "targetGrade", "english", "korean", "grammarPoint", "detailedExplanation", "keyWords"]
+                                }
+                            },
+                            synonyms: { type: "ARRAY", items: { type: "STRING" } },
+                            antonyms: { type: "ARRAY", items: { type: "STRING" } },
+                            quizQuestion: {
+                                type: "OBJECT",
+                                properties: {
+                                    sentenceWithBlank: { type: "STRING" },
+                                    options: { type: "ARRAY", items: { type: "STRING" } },
+                                    correctAnswer: { type: "STRING" },
+                                    explanation: { type: "STRING" }
+                                },
+                                propertyOrdering: ["sentenceWithBlank", "options", "correctAnswer", "explanation"]
+                            }
+                        },
+                        propertyOrdering: ["word", "phonetic", "partOfSpeech", "meaning", "difficulty", "usageTip", "examples", "synonyms", "antonyms", "quizQuestion"]
+                    }
+                }
+            };
+
+            // Implement Exponential Backoff for API call
+            let response;
+            let delay = 1000;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) break;
+                } catch (e) {
+                    console.debug(`Attempt ${attempt + 1} failed. Retrying in ${delay}ms...`);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+
+            if (!response || !response.ok) {
+                throw new Error("Gemini API 호출에 실패했습니다. API 키를 확인해 주세요.");
+            }
+
+            const result = await response.json();
+            const textJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!textJson) {
+                throw new Error("올바른 응답 데이터를 수신하지 못했습니다.");
+            }
+
+            return JSON.parse(textJson);
+        }
+
+        async function handleSearch(event) {
+            if (event) event.preventDefault();
+            const input = document.getElementById('searchInput');
+            const word = input.value.trim().toLowerCase();
+            if (!word) return;
+            searchWord(word);
+        }
+
+        async function searchWord(word) {
+            document.getElementById('searchInput').value = word;
+            document.getElementById('clearBtn').classList.remove('hidden');
+
+            // Toggle views
+            document.getElementById('welcomeView').classList.add('hidden');
+            document.getElementById('resultContainer').classList.add('hidden');
+            document.getElementById('loadingView').classList.remove('hidden');
+
+            saveRecentSearch(word);
+
+            try {
+                const data = await fetchWordDetails(word);
+                currentData = data;
+                renderResult(data);
+                document.getElementById('loadingView').classList.add('hidden');
+                document.getElementById('resultContainer').classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loadingView').classList.add('hidden');
+                showToast('단어 정보를 가져오는 중 오류가 발생했습니다.');
+                document.getElementById('welcomeView').classList.remove('hidden');
+            }
+        }
+
+        // Render Generated Data to UI
+        function renderResult(data) {
+            document.getElementById('wordTitle').textContent = data.word;
+            document.getElementById('phoneticText').textContent = data.phonetic || '';
+            document.getElementById('posTag').textContent = data.partOfSpeech || '단어';
+            document.getElementById('difficultyBadge').textContent = data.difficulty || '중·고교';
+            document.getElementById('wordMeaning').textContent = data.meaning;
+            document.getElementById('usageTipText').textContent = data.usageTip || '자주 쓰이는 예문과 함께 암기하세요.';
+
+            // Bookmark Status Update
+            updateBookmarkBtnState();
+
+            // Render 3 Example Cards
+            const container = document.getElementById('exampleCards');
+            container.innerHTML = '';
+
+            const levelBadges = [
+                { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800', tagBg: 'bg-emerald-600', icon: 'fa-seedling' },
+                { bg: 'bg-blue-50 border-blue-200 text-blue-800', tagBg: 'bg-blue-600', icon: 'fa-book-bookmark' },
+                { bg: 'bg-purple-50 border-purple-200 text-purple-800', tagBg: 'bg-purple-600', icon: 'fa-trophy' }
+            ];
+
+            data.examples.forEach((ex, idx) => {
+                const badgeStyle = levelBadges[idx % 3];
+                
+                // Highlight target word in English sentence
+                const regex = new RegExp(`(${data.word}\\w*)`, 'gi');
+                const highlightedEnglish = ex.english.replace(regex, `<span class="bg-amber-200 text-gray-900 px-1 py-0.5 rounded font-semibold">$1</span>`);
+
+                const cardHtml = `
+                    <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3 relative overflow-hidden">
+                        <!-- Level Header Badge -->
+                        <div class="flex items-center justify-between">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-white ${badgeStyle.tagBg}">
+                                <i class="fa-solid ${badgeStyle.icon} text-[10px]"></i>
+                                ${ex.levelTag || '예문 ' + (idx + 1)} (${ex.targetGrade || ''})
+                            </span>
+                            <button onclick="speakText('${escapeQuotes(ex.english)}')" class="text-gray-400 hover:text-blue-600 p-1 rounded-lg transition" title="문장 전체 읽기">
+                                <i class="fa-solid fa-volume-high text-sm"></i>
+                            </button>
+                        </div>
+
+                        <!-- Sentence English & Korean -->
+                        <div class="space-y-1.5 cursor-pointer bg-slate-50 p-3 rounded-xl hover:bg-blue-50/50 transition border border-slate-100" onclick="speakText('${escapeQuotes(ex.english)}')">
+                            <p class="text-sm font-semibold text-gray-900 leading-relaxed font-sans">
+                                ${highlightedEnglish}
+                            </p>
+                            <p class="text-xs font-medium text-gray-600 leading-relaxed">
+                                ${ex.korean}
+                            </p>
+                        </div>
+
+                        <!-- Key Grammar / Structure Point -->
+                        <div class="p-2.5 bg-blue-50/60 rounded-xl text-xs space-y-1 border border-blue-100/80">
+                            <div class="font-bold text-blue-900 flex items-center gap-1 text-[11px]">
+                                <i class="fa-solid fa-check text-blue-600"></i> 핵심 구문 & 문법:
+                            </div>
+                            <p class="text-gray-700 leading-normal pl-4 font-medium text-[11px]">
+                                ${ex.grammarPoint}
+                            </p>
+                        </div>
+
+                        <!-- Detailed Sentence Explanation -->
+                        <div class="text-xs text-gray-600 leading-relaxed pt-1">
+                            <span class="font-bold text-gray-800">💡 문장 상세해설:</span> ${ex.detailedExplanation}
+                        </div>
+
+                        <!-- Key Words Breakdown inside Sentence -->
+                        ${ex.keyWords && ex.keyWords.length > 0 ? `
+                            <div class="pt-2 border-t border-gray-100">
+                                <span class="text-[10px] font-bold text-gray-400 block mb-1">문장 속 중요 어휘</span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    ${ex.keyWords.map(kw => `
+                                        <span class="text-[11px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md">
+                                            <strong class="font-semibold text-gray-900">${kw.en}</strong>: ${kw.kr}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            // Render Synonyms & Antonyms
+            const synContainer = document.getElementById('synonymChips');
+            synContainer.innerHTML = data.synonyms && data.synonyms.length > 0
+                ? data.synonyms.map(s => `<button onclick="searchWord('${s}')" class="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-medium transition">${s}</button>`).join('')
+                : '<span class="text-xs text-gray-400">없음</span>';
+
+            const antContainer = document.getElementById('antonymChips');
+            antContainer.innerHTML = data.antonyms && data.antonyms.length > 0
+                ? data.antonyms.map(a => `<button onclick="searchWord('${a}')" class="px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-medium transition">${a}</button>`).join('')
+                : '<span class="text-xs text-gray-400">없음</span>';
+
+            // Render Practice Quiz
+            renderQuiz(data.quizQuestion, data.word);
+        }
+
+        function escapeQuotes(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        // Quiz Renderer
+        function renderQuiz(quiz, targetWord) {
+            const quizSentence = document.getElementById('quizSentence');
+            const quizOptions = document.getElementById('quizOptions');
+            const quizResult = document.getElementById('quizResult');
+
+            quizResult.classList.add('hidden');
+
+            if (!quiz || !quiz.options) {
+                quizSentence.textContent = `Q. Please complete: "They need to ________ the result."`;
+                return;
+            }
+
+            quizSentence.textContent = quiz.sentenceWithBlank;
+            quizOptions.innerHTML = '';
+
+            quiz.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "w-full py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-semibold text-white transition text-center";
+                btn.textContent = opt;
+                btn.onclick = () => checkQuizAnswer(opt, quiz.correctAnswer, quiz.explanation);
+                quizOptions.appendChild(btn);
+            });
+        }
+
+        function checkQuizAnswer(selected, correct, explanation) {
+            const quizResult = document.getElementById('quizResult');
+            quizResult.classList.remove('hidden', 'bg-emerald-900/80', 'bg-rose-900/80', 'text-emerald-200', 'text-rose-200');
+
+            if (selected.toLowerCase() === correct.toLowerCase()) {
+                quizResult.classList.add('bg-emerald-900/80', 'text-emerald-200', 'border', 'border-emerald-500/30');
+                quizResult.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> <strong>정답입니다!</strong><br><span class="text-[11px] opacity-90">${explanation}</span>`;
+            } else {
+                quizResult.classList.add('bg-rose-900/80', 'text-rose-200', 'border', 'border-rose-500/30');
+                quizResult.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1 text-rose-400"></i> <strong>아쉽네요! 정답은 '${correct}'입니다.</strong><br><span class="text-[11px] opacity-90">${explanation}</span>`;
+            }
+        }
+
+        // Bookmark / Saved Word Manager
+        function toggleBookmarkCurrent() {
+            if (!currentData) return;
+            const index = savedWords.findIndex(w => w.word.toLowerCase() === currentData.word.toLowerCase());
+            
+            if (index >= 0) {
+                savedWords.splice(index, 1);
+                showToast(`'${currentData.word}' 단어장에서 삭제됨`);
+            } else {
+                savedWords.push({
+                    word: currentData.word,
+                    meaning: currentData.meaning,
+                    difficulty: currentData.difficulty
+                });
+                showToast(`'${currentData.word}' 단어장에 저장 완료!`);
+            }
+
+            localStorage.setItem('voca_saved_words', JSON.stringify(savedWords));
+            updateBookmarkBtnState();
+            updateSavedCountBadge();
+            renderWordbookList();
+        }
+
+        function updateBookmarkBtnState() {
+            const btn = document.getElementById('bookmarkBtn');
+            if (!currentData) return;
+
+            const isSaved = savedWords.some(w => w.word.toLowerCase() === currentData.word.toLowerCase());
+            if (isSaved) {
+                btn.className = "p-2.5 text-amber-500 hover:text-amber-600 transition rounded-xl bg-amber-50 border border-amber-200";
+            } else {
+                btn.className = "p-2.5 text-gray-300 hover:text-amber-500 transition rounded-xl bg-gray-50 hover:bg-amber-50";
+            }
+        }
+
+        function updateSavedCountBadge() {
+            const badge = document.getElementById('savedCountBadge');
+            if (savedWords.length > 0) {
+                badge.textContent = savedWords.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function toggleWordbookModal() {
+            const modal = document.getElementById('wordbookModal');
+            if (modal.classList.contains('hidden')) {
+                renderWordbookList();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function renderWordbookList() {
+            const container = document.getElementById('wordbookList');
+            container.innerHTML = '';
+
+            if (savedWords.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400 space-y-2">
+                        <i class="fa-solid fa-bookmark text-3xl opacity-30"></i>
+                        <p class="text-xs">저장된 단어가 없습니다.<br>단어 옆 북마크 버튼을 눌러보세요.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            savedWords.forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = "p-3 bg-gray-50 hover:bg-blue-50/60 rounded-xl border border-gray-100 flex items-center justify-between transition cursor-pointer";
+                el.innerHTML = `
+                    <div onclick="searchWord('${item.word}'); toggleWordbookModal();">
+                        <h4 class="font-bold text-sm text-gray-800">${item.word}</h4>
+                        <p class="text-xs text-gray-500 line-clamp-1">${item.meaning}</p>
+                    </div>
+                    <button onclick="removeSavedWord(${idx})" class="text-gray-300 hover:text-rose-500 p-1.5" title="삭제">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function removeSavedWord(idx) {
+            savedWords.splice(idx, 1);
+            localStorage.setItem('voca_saved_words', JSON.stringify(savedWords));
+            updateSavedCountBadge();
+            updateBookmarkBtnState();
+            renderWordbookList();
+        }
+
+        function clearWordbook() {
+            if (savedWords.length === 0) return;
+            savedWords = [];
+            localStorage.setItem('voca_saved_words', JSON.stringify(savedWords));
+            updateSavedCountBadge();
+            updateBookmarkBtnState();
+            renderWordbookList();
+            showToast('단어장을 비웠습니다.');
+        }
+
+        // Recent Search Manager
+        function saveRecentSearch(word) {
+            recentSearches = recentSearches.filter(w => w.toLowerCase() !== word.toLowerCase());
+            recentSearches.unshift(word);
+            if (recentSearches.length > 8) recentSearches.pop();
+            localStorage.setItem('voca_recent_searches', JSON.stringify(recentSearches));
+            renderRecentSearches();
+        }
+
+        function renderRecentSearches() {
+            const container = document.getElementById('recentSearchContainer');
+            const list = document.getElementById('recentSearchList');
+            list.innerHTML = '';
+
+            if (recentSearches.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            recentSearches.forEach(word => {
+                const btn = document.createElement('button');
+                btn.className = "px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition";
+                btn.textContent = word;
+                btn.onclick = () => searchWord(word);
+                list.appendChild(btn);
+            });
+        }
+
+        function clearRecentSearches() {
+            recentSearches = [];
+            localStorage.removeItem('voca_recent_searches');
+            renderRecentSearches();
+        }
+
+        function toggleApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('apiKeyInput').value = customApiKey;
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('apiKeyInput');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            const keyVal = input.value.trim();
+            customApiKey = keyVal;
+            if (keyVal) {
+                localStorage.setItem('voca_gemini_api_key', keyVal);
+                showToast('Gemini API 키가 저장되었습니다.');
+            } else {
+                localStorage.removeItem('voca_gemini_api_key');
+                showToast('API 키가 초기화되었습니다.');
+            }
+            updateApiKeyBadge();
+            toggleApiKeyModal();
+        }
+
+        function clearApiKey() {
+            customApiKey = '';
+            localStorage.removeItem('voca_gemini_api_key');
+            document.getElementById('apiKeyInput').value = '';
+            updateApiKeyBadge();
+            showToast('API 키가 삭제되었습니다.');
+            toggleApiKeyModal();
+        }
+
+        function updateApiKeyBadge() {
+            const badge = document.getElementById('apiKeyBadge');
+            if (customApiKey) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
